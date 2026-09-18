@@ -29,163 +29,502 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>API Pública de Dados do SAI - ANTAQ</title>
 <meta name="description" content="API pública e aberta de dados de investimentos em instalações portuárias fiscalizados pela ANTAQ. Contratos, execução validada, consolidados e séries de índices, em JSON, CSV e Excel.">
-
-<link rel="stylesheet" href="./vendor/swagger-ui/swagger-ui.css"
+<link rel="stylesheet" type="text/css" href="./vendor/swagger-ui/swagger-ui.css"
       integrity="sha384-9Q2fpS+xeS4ffJy6CagnwoUl+4ldAYhOs9pgZuEKxypVModhmZFzeMlvVsAjf7uT">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9875;</text></svg>">
-
 <style>
-  :root{
-    --azul:#0b3d6e;
-    --azul-escuro:#08294a;
-    --azul-claro:#1668b3;
-    --verde:#1a7f4b;
-    --cinza:#f4f6f8;
-    --borda:#d8dee4;
-    --texto:#1b2733;
-    --texto-fraco:#5a6772;
-  }
-  html{box-sizing:border-box}
-  *,*:before,*:after{box-sizing:inherit}
-  body{margin:0;background:#fff;color:var(--texto);
-       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
-       line-height:1.6}
-
-  .topo{background:linear-gradient(135deg,#08294a 0%,#0b3d6e 55%,#1668b3 100%);
-        color:#fff;padding:2.6rem 1.5rem 2.2rem}
-  .wrap{max-width:1180px;margin:0 auto}
-  .topo h1{margin:0 0 .35rem;font-size:2rem;font-weight:700;letter-spacing:-.02em}
-  .topo .org{font-size:.82rem;text-transform:uppercase;letter-spacing:.09em;
-             opacity:.82;margin-bottom:.9rem}
-  .topo p.lead{margin:.5rem 0 1.3rem;font-size:1.05rem;max-width:64ch;opacity:.95}
-  .selos{display:flex;flex-wrap:wrap;gap:.5rem}
-  .selo{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);
-        border-radius:999px;padding:.24rem .8rem;font-size:.8rem;font-weight:500}
-  .selo.verde{background:rgba(26,127,75,.85);border-color:rgba(26,127,75,.9)}
-
-  .faixa{background:var(--cinza);border-bottom:1px solid var(--borda);padding:1.6rem 1.5rem}
-  .cartoes{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(255px,1fr))}
-  .cartao{background:#fff;border:1px solid var(--borda);border-radius:8px;padding:1rem 1.15rem}
-  .cartao h3{margin:0 0 .4rem;font-size:.93rem;color:var(--azul-escuro);
-             text-transform:uppercase;letter-spacing:.04em}
-  .cartao p{margin:0;font-size:.9rem;color:var(--texto-fraco)}
-  .cartao code{background:var(--cinza);padding:.1rem .35rem;border-radius:4px;
-               font-size:.85em;color:var(--azul-escuro)}
-
-  .conteudo{padding:2rem 1.5rem;max-width:1180px;margin:0 auto}
-  .conteudo h2{font-size:1.28rem;color:var(--azul-escuro);margin:2rem 0 .7rem;
-               padding-bottom:.4rem;border-bottom:2px solid var(--borda)}
-  .conteudo h2:first-child{margin-top:0}
-  .conteudo p{margin:.6rem 0}
-  pre{background:#0d1b2a;color:#e6edf3;padding:.95rem 1.1rem;border-radius:7px;
-      overflow-x:auto;font-size:.855rem;line-height:1.5;margin:.7rem 0}
-  pre code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-  .comentario{color:#7d8ea1}
-  /* As tabelas tem celulas de texto corrido e nao encolhem abaixo de ~430px.
-     Em vez de deixar a PAGINA inteira rolar de lado no celular, rola so a
-     tabela. */
-  .rolagem{overflow-x:auto;margin:.8rem 0;-webkit-overflow-scrolling:touch}
-  table{border-collapse:collapse;width:100%;min-width:24rem;font-size:.9rem}
-  th,td{border:1px solid var(--borda);padding:.5rem .7rem;text-align:left;vertical-align:top}
-  th{background:var(--cinza);font-weight:600;color:var(--azul-escuro)}
-  td code{background:var(--cinza);padding:.08rem .3rem;border-radius:3px;font-size:.88em}
-  .aviso{border-left:4px solid var(--azul-claro);background:#eef5fb;
-         padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.93rem}
-  .aviso strong{color:var(--azul-escuro)}
-
-  #swagger-ui{max-width:1180px;margin:0 auto;padding:0 .5rem 3rem}
-  /* O StandaloneLayout traz uma barra com campo de URL que permite carregar
-     qualquer especificacao. Nao faz sentido numa pagina institucional. */
-  .swagger-ui .topbar,
-  section.swagger-ui.swagger-container .topbar{display:none}
-  /* O bloco "info" repetiria, sem tabelas e sem exemplos, o texto que a pagina
-     ja apresenta acima. Fica oculto aqui e intacto no openapi.yaml, que e o
-     que Postman, Insomnia e geradores de cliente consomem. */
-  .swagger-ui .info{display:none}
-  .swagger-ui .scheme-container{background:var(--cinza);box-shadow:none;
-                                border:1px solid var(--borda);border-radius:7px;margin:1.2rem 0}
-
-  .rodape{background:var(--azul-escuro);color:rgba(255,255,255,.85);
-          padding:1.8rem 1.5rem;font-size:.87rem}
-  .rodape a{color:#8dc4f0}
-  .rodape .wrap{display:flex;flex-wrap:wrap;gap:1.4rem;justify-content:space-between}
-
-  @media (max-width:640px){
-    .topo h1{font-size:1.5rem}
-    .rodape .wrap{flex-direction:column;gap:.6rem}
-  }
-</style>
+        html {
+            box-sizing: border-box;
+            overflow-y: scroll;
+        }
+        *,
+        *:before,
+        *:after {
+            box-sizing: inherit;
+        }
+        body {
+            margin: 0;
+            background: #fafafa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        /* Customização do header */
+        .swagger-ui .topbar {
+            background-color: #1351b4;
+            padding: 10px 0;
+        }
+        .swagger-ui .topbar .download-url-wrapper .select-label {
+            color: #fff;
+        }
+        .swagger-ui .topbar .download-url-wrapper input[type=text] {
+            border: 2px solid #fff;
+        }
+        /* Header customizado ANTAQ */
+        .custom-header {
+            background: linear-gradient(135deg, #1351b4 0%, #071d41 100%);
+            color: white;
+            padding: 20px 40px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .custom-header img {
+            height: 60px;
+        }
+        .custom-header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        .custom-header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        @media (max-width: 768px) {
+            .custom-header {
+                padding: 15px 20px;
+                gap: 10px;
+            }
+            .custom-header img { height: 44px; }
+            .custom-header h1 { font-size: 18px; }
+            .custom-header p { font-size: 12px; }
+            .custom-header .export-btn,
+            .custom-header .dropdown-sai-btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            .integration-guide { padding: 16px 20px; }
+        }
+        /* Ajuste do info block */
+        .swagger-ui .info {
+            margin: 30px 0;
+        }
+        .swagger-ui .info .title {
+            color: #1351b4;
+        }
+        /* Badge de versão */
+        .version-badge {
+            background: #168821;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        /* Footer */
+        .custom-footer {
+            background: #071d41;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: 40px;
+        }
+        .custom-footer a {
+            color: #a8c8ff;
+            text-decoration: none;
+        }
+        .custom-footer a:hover {
+            text-decoration: underline;
+        }
+        /* Guia de Integração - Seções Colapsáveis */
+        .integration-guide {
+            max-width: 1460px;
+            margin: 0 auto;
+            padding: 20px 40px;
+        }
+        .integration-guide h2 {
+            color: #1351b4;
+            font-size: 20pt;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+        }
+        .collapsible-section {
+            margin-bottom: 10px;
+            border: 1px solid #d4d4d4;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+        }
+        .collapsible-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 15px 20px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            color: #1351b4;
+            transition: background 0.2s;
+        }
+        .collapsible-header:hover {
+            background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+        }
+        .collapsible-header::after {
+            content: '+';
+            font-size: 20px;
+            font-weight: bold;
+            transition: transform 0.3s;
+        }
+        .collapsible-section.active .collapsible-header::after {
+            content: '−';
+        }
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+            background: #fff;
+        }
+        .collapsible-section.active .collapsible-content {
+            max-height: 20000px;
+        }
+        .collapsible-body {
+            padding: 20px;
+            color: #3b4151;
+            line-height: 1.6;
+        }
+        .collapsible-body h4 {
+            color: #1351b4;
+            margin: 15px 0 10px 0;
+            font-size: 16px;
+        }
+        .collapsible-body h4:first-child {
+            margin-top: 0;
+        }
+        .collapsible-body pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        .collapsible-body code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            color: #d63384;
+        }
+        .collapsible-body pre code {
+            background: transparent;
+            padding: 0;
+            color: inherit;
+        }
+        .collapsible-body ul, .collapsible-body ol {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        .collapsible-body li {
+            margin: 5px 0;
+        }
+        .collapsible-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .collapsible-body th, .collapsible-body td {
+            border: 1px solid #dee2e6;
+            padding: 10px 12px;
+            text-align: left;
+        }
+        .collapsible-body th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #1351b4;
+        }
+        .collapsible-body .alert {
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .collapsible-body .alert-warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            color: #856404;
+        }
+        .collapsible-body .alert-info {
+            background: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            color: #0c5460;
+        }
+        .collapsible-body .alert-success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            color: #155724;
+        }
+        .method-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #fff;
+            margin-right: 8px;
+        }
+        .method-get { background: #61affe; }
+        .method-put { background: #fca130; }
+        .method-post { background: #49cc90; }
+        .export-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .export-btn:hover {
+            background: rgba(255,255,255,0.25);
+            border-color: white;
+        }
+        /* Dropdown SisPAT */
+        .dropdown-sai {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-sai-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.5);
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            transition: background 0.2s, border-color 0.2s;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .dropdown-sai-btn:hover {
+            background: rgba(255,255,255,0.25);
+            border-color: white;
+        }
+        .dropdown-sai-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: calc(100% + 6px);
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+            min-width: 240px;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        .dropdown-sai.open .dropdown-sai-menu {
+            display: block;
+        }
+        .dropdown-sai-menu a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            color: #1351b4;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.15s;
+        }
+        .dropdown-sai-menu a:hover {
+            background: #f0f4ff;
+        }
+        .dropdown-sai-menu a .env-badge {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            margin-left: auto;
+        }
+        .dropdown-sai-menu a .env-badge.prod {
+            background: #d4edda;
+            color: #155724;
+        }
+        .dropdown-sai-menu a .env-badge.hmg {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .dropdown-sai-menu hr {
+            margin: 0;
+            border: none;
+            border-top: 1px solid #e9ecef;
+        }
+        section.swagger-ui.swagger-container .topbar {
+            display: none;
+        }
+        /* ---- Acrescimos do SAI sobre a folha do SisPAT ---- */
+        /* Comentarios dentro dos blocos de codigo (fundo escuro). */
+        .collapsible-body pre .comentario {
+            color: #7ec699;
+        }
+        /* Texto de abertura do guia, fora dos acordeoes. */
+        .guia-intro {
+            color: #3b4151;
+            line-height: 1.6;
+            margin: 0 0 18px 0;
+        }
+        /* Tabelas largas (diagnostico de correcao) em tela estreita. */
+        .collapsible-body .rolagem {
+            overflow-x: auto;
+        }
+        .collapsible-body .rolagem table {
+            min-width: 520px;
+        }
+        /* Em tela estreita, nomes longos de campo entre <code> empurravam a
+           pagina para alem da janela. Quebrar so quando nao couber. */
+        .collapsible-body code,
+        .swagger-ui .renderedMarkdown code,
+        .swagger-ui .information-container code {
+            overflow-wrap: anywhere;
+        }
+        /* Etiquetas de formato no menu de download, no lugar das de ambiente. */
+        .dropdown-sai-menu a .env-badge.csv  { background: #d4edda; color: #155724; }
+        .dropdown-sai-menu a .env-badge.xlsx { background: #d1ecf1; color: #0c5460; }
+        .dropdown-sai-menu a .env-badge.zip  { background: #fff3cd; color: #856404; }
+    </style>
 </head>
 <body>
 
-<header class="topo">
-  <div class="wrap">
-    <div class="org">ANTAQ &middot; Superintendência de Fiscalização e Coordenação</div>
-    <h1>API Pública de Dados do SAI</h1>
-    <p class="lead">
-      Dados abertos dos investimentos em instalações portuárias acompanhados pela ANTAQ:
-      contratos, execução verificada pela Fiscalização, consolidados e séries de índices
-      econômicos — em JSON, CSV e Excel.
+<div class="custom-header">
+    <img src="./img/antaq-logo.png" alt="ANTAQ" onerror="this.style.display='none'">
+    <div style="flex: 1;">
+        <h1>API Pública de Dados do SAI <span class="version-badge">v1.0.0</span></h1>
+        <p>Sistema de Acompanhamento de Investimentos &mdash; Agência Nacional de Transportes Aquaviários</p>
+    </div>
+
+    <a class="export-btn" href="./openapi.yaml" download>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="vertical-align:middle;margin-right:6px;">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>Especificação OpenAPI</a>
+
+    <a class="export-btn" href="https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/"
+       target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="vertical-align:middle;margin-right:6px;">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="2" y1="12" x2="22" y2="12"></line>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+        </svg>Endpoint raiz</a>
+
+    <div class="dropdown-sai">
+        <button class="dropdown-sai-btn" onclick="this.parentElement.classList.toggle('open')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                 style="vertical-align:middle;margin-right:6px;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>Baixar dados &#9662;</button>
+        <div class="dropdown-sai-menu">
+            <a href="https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/contratos?formato=csv">
+                Contratos <span class="env-badge csv">CSV</span></a>
+            <a href="https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/contratos?formato=xlsx">
+                Contratos <span class="env-badge xlsx">XLSX</span></a>
+            <hr>
+            <a href="https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/acompanhamentos?formato=csv">
+                Acompanhamentos <span class="env-badge csv">CSV</span></a>
+            <a href="https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/acompanhamentos?formato=xlsx">
+                Acompanhamentos <span class="env-badge xlsx">XLSX</span></a>
+            <hr>
+            <a href="https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/download/completo">
+                Pacote completo <span class="env-badge zip">ZIP</span></a>
+        </div>
+    </div>
+</div>
+
+<div class="integration-guide">
+    <h2>Guia de Integração Rápida</h2>
+    <p class="guia-intro">
+        Dados abertos dos investimentos em instalações portuárias acompanhados pela ANTAQ:
+        contratos, execução verificada pela Fiscalização, consolidados e séries de índices
+        econômicos &mdash; em JSON, CSV e Excel. Abra as seções abaixo para o essencial; a
+        referência completa de cada endpoint está no final da página.
     </p>
-    <div class="selos">
-      <span class="selo verde">Acesso aberto, sem cadastro</span>
-      <span class="selo">v1.0.0</span>
-      <span class="selo">OpenAPI 3.0.3</span>
-      <span class="selo">JSON &middot; CSV &middot; XLSX</span>
-      <span class="selo">Dados Abertos gov.br</span>
-    </div>
-  </div>
-</header>
 
-<section class="faixa">
-  <div class="wrap cartoes">
-    <div class="cartao">
-      <h3>Comece por aqui</h3>
-      <p>O próprio endpoint raiz descreve a API: <code>GET /dados/</code> lista recursos,
-         parâmetros e valores válidos.</p>
-    </div>
-    <div class="cartao">
-      <h3>Sem chave de acesso</h3>
-      <p>Nenhuma autenticação, nenhuma cota. Basta chamar a URL.</p>
-    </div>
-    <div class="cartao">
-      <h3>Planilha pronta</h3>
-      <p>Acrescente <code>?formato=csv</code> ou <code>?formato=xlsx</code> a qualquer
-         listagem e receba o arquivo completo.</p>
-    </div>
-    <div class="cartao">
-      <h3>Tudo de uma vez</h3>
-      <p><code>/dados/download/completo</code> entrega um ZIP com todos os conjuntos,
-         um LEIAME e o dicionário de dados.</p>
-    </div>
-  </div>
-</section>
+    <!-- ============================================================ -->
+    <div class="collapsible-section active">
+        <div class="collapsible-header">Comece por aqui</div>
+        <div class="collapsible-content">
+            <div class="collapsible-body">
+                <div class="alert alert-success">
+                    <strong>Acesso aberto, sem cadastro.</strong> Nenhuma autenticação,
+                    nenhuma chave, nenhuma cota &mdash; basta chamar a URL. Especificação
+                    OpenAPI 3.0.3, respostas em JSON, CSV e XLSX, sob a
+                    <a href="https://www.gov.br/governodigital/pt-br/dados-abertos">Licença
+                    de Dados Abertos do gov.br</a>.
+                </div>
 
-<main class="conteudo">
+                <h4>URL base</h4>
+<pre><code>https://prd-apex.antaq.gov.br/ords/sfc_sai/dados</code></pre>
 
-  <h2>O que é publicado</h2>
-  <p>
-    Todos os <strong>contratos</strong> com obrigação de investimento constam da API, com
-    dados cadastrais e o investimento global previsto. Essa informação é produzida pela
-    própria ANTAQ e é pública desde a celebração do contrato.
-  </p>
-  <p>
-    Os dados de <strong>execução</strong> — quanto já foi efetivamente investido, qual o
-    percentual físico realizado — seguem critério mais estrito: só aparecem depois que o
-    acompanhamento foi <strong>concluído pela Fiscalização</strong>. Enquanto o relatório do
-    empreendedor está em análise, seus números não são publicados, porque ainda não foram
-    verificados.
-  </p>
-  <div class="aviso">
-    <strong>Ao somar execução, observe a cobertura.</strong>
-    A carteira aparece inteira, mas parte dos contratos vem com
-    <code>possui_execucao_validada = 0</code> e campos de execução nulos. O campo
-    <code>cobertura_execucao_pct</code> de <code>/consolidado/resumo</code> informa que
-    fração da carteira já passou pela Fiscalização. Comparar execução com investimento
-    global sem considerar isso subestima o percentual executado.
-  </div>
+                <h4>Quatro coisas que resolvem a maior parte dos casos</h4>
+                <ul>
+                    <li><strong>A API se descreve sozinha.</strong> <code>GET /dados/</code>
+                        lista recursos, parâmetros e valores válidos &mdash; não é preciso ler
+                        o Swagger para começar.</li>
+                    <li><strong>Planilha pronta.</strong> Acrescente <code>?formato=csv</code>
+                        ou <code>?formato=xlsx</code> a qualquer listagem e receba o arquivo
+                        completo, já com o recorte aplicado.</li>
+                    <li><strong>Tudo de uma vez.</strong>
+                        <code>/dados/download/completo</code> entrega um ZIP com todos os
+                        conjuntos, um LEIAME e o dicionário de dados.</li>
+                    <li><strong>Valores atualizados.</strong> O parâmetro
+                        <code>data_reajuste</code> traz os valores monetários para a data
+                        pedida, pelos índices do próprio contrato.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 
-  <h2>Primeiros exemplos</h2>
+    <!-- ============================================================ -->
+    <div class="collapsible-section">
+        <div class="collapsible-header">O que é publicado</div>
+        <div class="collapsible-content">
+            <div class="collapsible-body">
+                <p>
+                    Todos os <strong>contratos</strong> com obrigação de investimento constam da
+                    API, com dados cadastrais e o investimento global previsto. Essa informação
+                    é produzida pela própria ANTAQ e é pública desde a celebração do contrato.
+                </p>
+                <p>
+                    Os dados de <strong>execução</strong> &mdash; quanto já foi efetivamente
+                    investido, qual o percentual físico realizado &mdash; seguem critério mais
+                    estrito: só aparecem depois que o acompanhamento foi
+                    <strong>concluído pela Fiscalização</strong>. Enquanto o relatório do
+                    empreendedor está em análise, seus números não são publicados, porque ainda
+                    não foram verificados.
+                </p>
+                <div class="alert alert-warning">
+                    <strong>Ao somar execução, observe a cobertura.</strong>
+                    A carteira aparece inteira, mas parte dos contratos vem com
+                    <code>possui_execucao_validada = 0</code> e campos de execução nulos. O campo
+                    <code>cobertura_execucao_pct</code> de <code>/consolidado/resumo</code>
+                    informa que fração da carteira já passou pela Fiscalização. Comparar execução
+                    com investimento global sem considerar isso subestima o percentual executado.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <div class="collapsible-section">
+        <div class="collapsible-header">Primeiros exemplos</div>
+        <div class="collapsible-content">
+            <div class="collapsible-body">
+                <h4>Linha de comando</h4>
 <pre><code><span class="comentario"># Resumo da carteira</span>
 curl "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/consolidado/resumo"
 
@@ -195,13 +534,13 @@ curl -O -J "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/contratos?uf=SP&amp
 <span class="comentario"># Valores corrigidos para dezembro de 2024</span>
 curl "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/contratos?data_reajuste=2024-12"
 
-<span class="comentario"># Investimento por região</span>
+<span class="comentario"># Investimento por regiao</span>
 curl "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/consolidado/por/regiao"
 
 <span class="comentario"># Pacote completo de dados abertos</span>
 curl -O -J "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/download/completo"</code></pre>
 
-  <p>Em Python, com pandas:</p>
+                <h4>Python, com pandas</h4>
 <pre><code>import pandas as pd
 
 BASE = "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados"
@@ -219,92 +558,158 @@ while True:
         break
     offset += p["returned_count"]
 df = pd.DataFrame(linhas)</code></pre>
+            </div>
+        </div>
+    </div>
 
-  <h2>Valores corrigidos</h2>
-  <p>
-    Cada contrato tem cláusula própria de reajuste, com um ou mais índices econômicos
-    (IPCA, IGP-M, INPC, INCC) e períodos de vigência. O parâmetro
-    <code>data_reajuste</code> define a data para a qual os valores são trazidos; se for
-    omitido, usa-se o mês corrente.
-  </p>
-  <p>Todo valor monetário vem em campos que permitem refazer a conta:</p>
-  <div class="rolagem"><table>
-    <tr><th>Sufixo</th><th>Conteúdo</th></tr>
-    <tr><td><code>_nominal</code></td><td>valor original, na data-base contratual</td></tr>
-    <tr><td><code>_data_base</code></td><td>data-base a que o valor nominal se refere</td></tr>
-    <tr><td><code>_fator</code></td><td>multiplicador acumulado aplicado, com 6 casas decimais</td></tr>
-    <tr><td><code>_corrigido</code></td><td><code>nominal × fator</code>, arredondado a 2 casas</td></tr>
-    <tr><td><code>_correcao</code></td><td>diagnóstico do cálculo</td></tr>
-  </table></div>
-  <p>
-    O diagnóstico existe porque um fator igual a 1 é ambíguo: pode significar
-    &ldquo;contrato sem reajuste&rdquo; ou &ldquo;não foi possível corrigir&rdquo;. Os
-    valores mais frequentes são:
-  </p>
-  <div class="rolagem"><table>
-    <tr><th>Valor</th><th>Significado</th></tr>
-    <tr><td><code>APLICADA</code></td>
-        <td>a série cobre todo o intervalo; correção integral</td></tr>
-    <tr><td><code>APLICADA_ATE_ULTIMA_COMPETENCIA</code></td>
-        <td>a data pedida é posterior à última competência publicada do índice, e o fator
-            acumulou até ela. <strong>É o caso normal</strong> quando
-            <code>data_reajuste</code> é omitido, porque as séries saem com defasagem</td></tr>
-    <tr><td><code>NAO_APLICAVEL</code></td>
-        <td>contrato sem cláusula de correção; fator 1 é o correto</td></tr>
-    <tr><td><code>SEM_DATA_BASE</code></td>
-        <td>data-base ausente no cadastro; devolvido o valor nominal</td></tr>
-  </table></div>
-  <p>
-    A lista completa está em <code>/dados/dominios</code>, domínio
-    <code>status_correcao</code>. A competência efetivamente aplicada a cada índice consta
-    de <code>metadados.ultima_competencia_indices</code>, presente em toda resposta.
-  </p>
+    <!-- ============================================================ -->
+    <div class="collapsible-section">
+        <div class="collapsible-header">Valores corrigidos</div>
+        <div class="collapsible-content">
+            <div class="collapsible-body">
+                <p>
+                    Cada contrato tem cláusula própria de reajuste, com um ou mais índices
+                    econômicos (IPCA, IGP-M, INPC, INCC) e períodos de vigência. O parâmetro
+                    <code>data_reajuste</code> define a data para a qual os valores são
+                    trazidos; se for omitido, usa-se o mês corrente.
+                </p>
 
-  <h2>Formatos e paginação</h2>
-  <p>
-    JSON, CSV e XLSX saem da <strong>mesma consulta</strong>: o arquivo baixado é
-    exatamente o recorte visto no JSON. O CSV usa UTF-8 com BOM, separador ponto-e-vírgula
-    e textos entre aspas — abre no Excel em português sem etapa de importação.
-  </p>
-  <p>
-    <strong>As exportações não paginam.</strong> <code>csv</code> e <code>xlsx</code>
-    devolvem o recorte inteiro, independentemente de <code>limit</code>. Já as respostas
-    JSON trazem no máximo 500 registros por página; percorra somando
-    <code>returned_count</code> ao <code>offset</code> enquanto <code>has_more</code> for
-    verdadeiro.
-  </p>
+                <h4>Todo valor monetário vem em campos que permitem refazer a conta</h4>
+                <table>
+                    <tr><th>Sufixo</th><th>Conteúdo</th></tr>
+                    <tr><td><code>_nominal</code></td><td>valor original, na data-base contratual</td></tr>
+                    <tr><td><code>_data_base</code></td><td>data-base a que o valor nominal se refere</td></tr>
+                    <tr><td><code>_fator</code></td><td>multiplicador acumulado aplicado, com 6 casas decimais</td></tr>
+                    <tr><td><code>_corrigido</code></td><td><code>nominal × fator</code>, arredondado a 2 casas</td></tr>
+                    <tr><td><code>_correcao</code></td><td>diagnóstico do cálculo</td></tr>
+                </table>
 
-  <h2>Dado pessoal</h2>
-  <p>
-    Esta API não expõe dado pessoal. Nomes, CPF, e-mail e telefone de representantes legais
-    não estão em nenhum endpoint, assim como os campos de texto livre preenchidos durante a
-    análise — observações e pareceres internos. A empresa aparece por razão social e CNPJ,
-    que são dados de pessoa jurídica.
-  </p>
+                <h4>Diagnóstico da correção</h4>
+                <p>
+                    O diagnóstico existe porque um fator igual a 1 é ambíguo: pode significar
+                    &ldquo;contrato sem reajuste&rdquo; ou &ldquo;não foi possível corrigir&rdquo;.
+                    Os valores mais frequentes são:
+                </p>
+                <div class="rolagem"><table>
+                    <tr><th>Valor</th><th>Significado</th></tr>
+                    <tr><td><code>APLICADA</code></td>
+                        <td>a série cobre todo o intervalo; correção integral</td></tr>
+                    <tr><td><code>APLICADA_ATE_ULTIMA_COMPETENCIA</code></td>
+                        <td>a data pedida é posterior à última competência publicada do índice, e o
+                            fator acumulou até ela. <strong>É o caso normal</strong> quando
+                            <code>data_reajuste</code> é omitido, porque as séries saem com
+                            defasagem</td></tr>
+                    <tr><td><code>NAO_APLICAVEL</code></td>
+                        <td>contrato sem cláusula de correção; fator 1 é o correto</td></tr>
+                    <tr><td><code>SEM_DATA_BASE</code></td>
+                        <td>data-base ausente no cadastro; devolvido o valor nominal</td></tr>
+                </table></div>
+                <div class="alert alert-info">
+                    A lista completa está em <code>/dados/dominios</code>, domínio
+                    <code>status_correcao</code>. A competência efetivamente aplicada a cada
+                    índice consta de <code>metadados.ultima_competencia_indices</code>, presente
+                    em toda resposta.
+                </div>
+            </div>
+        </div>
+    </div>
 
-  <h2>Referência completa</h2>
-  <p>
-    Abaixo, todos os endpoints, parâmetros e campos. Os exemplos podem ser executados
-    diretamente na página pelo botão <em>Try it out</em>.
-  </p>
-</main>
+    <!-- ============================================================ -->
+    <div class="collapsible-section">
+        <div class="collapsible-header">Formatos e paginação</div>
+        <div class="collapsible-content">
+            <div class="collapsible-body">
+                <p>
+                    JSON, CSV e XLSX saem da <strong>mesma consulta</strong>: o arquivo baixado é
+                    exatamente o recorte visto no JSON. O CSV usa UTF-8 com BOM, separador
+                    ponto-e-vírgula e textos entre aspas &mdash; abre no Excel em português sem
+                    etapa de importação.
+                </p>
+                <div class="alert alert-info">
+                    <strong>As exportações não paginam.</strong> <code>csv</code> e
+                    <code>xlsx</code> devolvem o recorte inteiro, independentemente de
+                    <code>limit</code>. Já as respostas JSON trazem no máximo 500 registros por
+                    página; percorra somando <code>returned_count</code> ao <code>offset</code>
+                    enquanto <code>has_more</code> for verdadeiro.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <div class="collapsible-section">
+        <div class="collapsible-header">Endpoints disponíveis</div>
+        <div class="collapsible-content">
+            <div class="collapsible-body">
+                <h4>Contratos e execução</h4>
+                <ul>
+                    <li><span class="method-badge method-get">GET</span><code>/</code> &mdash; documento de descoberta</li>
+                    <li><span class="method-badge method-get">GET</span><code>/contratos</code> &mdash; lista os contratos com obrigação de investimento</li>
+                    <li><span class="method-badge method-get">GET</span><code>/contratos/{id}</code> &mdash; ficha completa de um contrato</li>
+                    <li><span class="method-badge method-get">GET</span><code>/contratos/{id}/acompanhamentos</code> &mdash; acompanhamentos validados do contrato</li>
+                    <li><span class="method-badge method-get">GET</span><code>/contratos/{id}/indices</code> &mdash; índices econômicos do contrato</li>
+                    <li><span class="method-badge method-get">GET</span><code>/acompanhamentos</code> &mdash; todos os acompanhamentos validados</li>
+                </ul>
+
+                <h4>Consolidados</h4>
+                <ul>
+                    <li><span class="method-badge method-get">GET</span><code>/consolidado/resumo</code> &mdash; totais da carteira</li>
+                    <li><span class="method-badge method-get">GET</span><code>/consolidado/por/{dimensao}</code> &mdash; agregação por região, UF, empresa, porto, situação, perfil de carga, tipo de instalação, índice ou ano</li>
+                    <li><span class="method-badge method-get">GET</span><code>/consolidado/evolucao-mensal</code> &mdash; execução por mês de referência</li>
+                    <li><span class="method-badge method-get">GET</span><code>/consolidado/evolucao-carteira</code> &mdash; formação da carteira ao longo do tempo</li>
+                    <li><span class="method-badge method-get">GET</span><code>/consolidado/faixas-execucao</code> &mdash; distribuição por faixa de execução física</li>
+                    <li><span class="method-badge method-get">GET</span><code>/consolidado/reidi</code> &mdash; comparativo REIDI</li>
+                    <li><span class="method-badge method-get">GET</span><code>/mapa</code> &mdash; contratos georreferenciados</li>
+                </ul>
+
+                <h4>Referência e pacote completo</h4>
+                <ul>
+                    <li><span class="method-badge method-get">GET</span><code>/indices</code> &mdash; índices econômicos utilizados</li>
+                    <li><span class="method-badge method-get">GET</span><code>/indices/{sigla}</code> &mdash; série histórica de um índice</li>
+                    <li><span class="method-badge method-get">GET</span><code>/dominios</code> &mdash; catálogos de códigos</li>
+                    <li><span class="method-badge method-get">GET</span><code>/metadados</code> &mdash; cobertura, limites e dicionário de dados</li>
+                    <li><span class="method-badge method-get">GET</span><code>/download/completo</code> &mdash; pacote ZIP com todos os conjuntos</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <div class="collapsible-section">
+        <div class="collapsible-header">Dado pessoal</div>
+        <div class="collapsible-content">
+            <div class="collapsible-body">
+                <p>
+                    Esta API não expõe dado pessoal. Nomes, CPF, e-mail e telefone de
+                    representantes legais não estão em nenhum endpoint, assim como os campos de
+                    texto livre preenchidos durante a análise &mdash; observações e pareceres
+                    internos. A empresa aparece por razão social e CNPJ, que são dados de pessoa
+                    jurídica.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <p class="guia-intro" style="margin-top:20px;">
+        <strong>Referência completa.</strong> Abaixo, todos os endpoints, parâmetros e campos.
+        Os exemplos podem ser executados diretamente na página pelo botão <em>Try it out</em>.
+    </p>
+</div>
 
 <div id="swagger-ui"></div>
 
-<footer class="rodape">
-  <div class="wrap">
-    <div>
-      <strong>Agência Nacional de Transportes Aquaviários</strong><br>
-      Superintendência de Fiscalização e Coordenação<br>
-      Gerência de Planejamento e Inteligência da Fiscalização
-    </div>
-    <div>
-      Dúvidas e sugestões: <a href="mailto:gpf@antaq.gov.br">gpf@antaq.gov.br</a><br>
-      <a href="./openapi.yaml">Especificação OpenAPI</a> &middot;
-      <a href="https://www.gov.br/governodigital/pt-br/dados-abertos">Licença Dados Abertos</a>
-    </div>
-  </div>
-</footer>
+<div class="custom-footer">
+    <p>
+        <strong>ANTAQ</strong> - Agência Nacional de Transportes Aquaviários<br>
+        Superintendência de Fiscalização e Coordenação &middot;
+        Gerência de Planejamento e Inteligência da Fiscalização<br>
+        <a href="https://www.gov.br/antaq" target="_blank" rel="noopener">www.gov.br/antaq</a> |
+        <a href="mailto:gpf@antaq.gov.br">gpf@antaq.gov.br</a> |
+        <a href="./openapi.yaml">Especificação OpenAPI</a> |
+        <a href="https://www.gov.br/governodigital/pt-br/dados-abertos" target="_blank" rel="noopener">Licença Dados Abertos</a>
+    </p>
+    <p style="opacity:0.7;font-size:12px;margin-top:10px;">Documentação gerada com Swagger UI</p>
+</div>
 
 <script src="./vendor/swagger-ui/swagger-ui-bundle.js"
         integrity="sha384-IKpAWwsTL0pcw7/Amtnt2eXF4P1BK64WNuY2E/RG15SWLUW5HXzFuyqCSAr/DP8C"></script>
@@ -332,6 +737,21 @@ df = pd.DataFrame(linhas)</code></pre>
     });
     window.ui = ui;
   };
+
+  /* Acordeoes do Guia de Integracao. */
+  document.querySelectorAll('.collapsible-header').forEach(header => {
+      header.addEventListener('click', function () {
+          const section = this.parentElement;
+          section.classList.toggle('active');
+      });
+  });
+
+  /* Fecha o menu "Baixar dados" ao clicar fora dele. */
+  document.addEventListener('click', function (e) {
+      document.querySelectorAll('.dropdown-sai.open').forEach(function (d) {
+          if (!d.contains(e.target)) d.classList.remove('open');
+      });
+  });
 </script>
 </body>
 </html>
