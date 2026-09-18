@@ -1,0 +1,1232 @@
+openapi: 3.0.3
+
+info:
+  title: API Pública de Dados do SAI
+  version: 1.0.0
+  description: |
+    API pública e aberta do **SAI — Sistema de Acompanhamento de Investimentos**, da
+    Superintendência de Fiscalização e Coordenação (SFC) da ANTAQ.
+
+    O SAI acompanha as obrigações de investimento assumidas por arrendatários e
+    autorizatários de instalações portuárias. Esta API publica esses dados em formato
+    aberto, legível por máquina, sem necessidade de cadastro ou chave de acesso.
+
+    ## O que é publicado
+
+    Todos os **contratos** com obrigação de investimento constam da API, com seus dados
+    cadastrais e o investimento global previsto — essa informação é produzida pela própria
+    ANTAQ e é pública desde a celebração do contrato.
+
+    Os dados de **execução** (quanto já foi efetivamente investido, percentual físico
+    realizado) seguem critério mais estrito: só aparecem depois que o acompanhamento
+    correspondente foi **concluído pela Fiscalização**. Enquanto o relatório do
+    empreendedor está em análise, seus números não são publicados, porque ainda não
+    foram verificados.
+
+    Na prática isso significa que a carteira aparece inteira, mas uma parte dos contratos
+    vem com `possui_execucao_validada = 0` e os campos de execução nulos. O endpoint
+    `/metadados` informa a cobertura corrente, e o campo `cobertura_execucao_pct` de
+    `/consolidado/resumo` diz que fração da carteira já passou pela Fiscalização. **Ao
+    comparar totais de execução com o investimento global, lembre-se de que o numerador
+    cobre apenas os contratos já fiscalizados.**
+
+    ## Correção monetária
+
+    Cada contrato tem cláusula própria de reajuste, com um ou mais índices econômicos
+    (IPCA, IGP-M, INPC, INCC) e períodos de vigência. A API aplica esses índices para
+    trazer os valores a uma data de referência.
+
+    O parâmetro `data_reajuste` define essa data. Se for omitido, usa-se o **mês corrente**.
+    Todo valor monetário é devolvido em três campos, para que a conta seja auditável:
+
+    | Sufixo        | Conteúdo                                                  |
+    |---------------|-----------------------------------------------------------|
+    | `_nominal`    | valor original, na data-base contratual                    |
+    | `_data_base`  | data-base à qual o valor nominal se refere                 |
+    | `_fator`      | multiplicador acumulado aplicado (6 casas decimais)        |
+    | `_corrigido`  | resultado: `nominal × fator`, arredondado a 2 casas        |
+    | `_correcao`   | diagnóstico do cálculo (ver abaixo)                        |
+
+    `nominal × fator = corrigido` vale exatamente, com os números publicados — é possível
+    refazer a conta a partir da resposta.
+
+    ### Diagnóstico da correção
+
+    O campo `*_correcao` diz o que de fato aconteceu no cálculo. Ele existe porque um fator
+    igual a 1 é ambíguo: pode significar "contrato sem reajuste" ou "não foi possível
+    corrigir". Valores possíveis:
+
+    | Valor                             | Significado                                                                 |
+    |-----------------------------------|------------------------------------------------------------------------------|
+    | `APLICADA`                        | série cobre todo o intervalo; correção integral                              |
+    | `APLICADA_ATE_ULTIMA_COMPETENCIA` | data de reajuste posterior à última competência publicada do índice; o fator acumulou até a última disponível. **Caso normal** quando `data_reajuste` é omitido, pois a série é publicada com defasagem |
+    | `NAO_APLICAVEL`                   | contrato sem cláusula de correção monetária; fator 1 é o correto            |
+    | `SEM_DATA_BASE`                   | data-base ausente no cadastro; devolvido o valor nominal                     |
+    | `SEM_INDICE_CADASTRADO`           | não há período de índice cobrindo a data-base                                |
+    | `SEM_SERIE`                       | índice cadastrado, porém sem série histórica carregada                       |
+    | `BASE_ANTERIOR_A_SERIE`           | data-base anterior ao início da série; a correção fica subestimada           |
+    | `INDETERMINADO`                   | não foi possível diagnosticar                                                |
+
+    A competência efetivamente aplicada a cada índice está em
+    `metadados.ultima_competencia_indices`, presente em toda resposta.
+
+    ## Formatos
+
+    Todo endpoint de listagem aceita `formato=json` (padrão), `formato=csv` ou
+    `formato=xlsx`. Os três saem da **mesma consulta**, com as mesmas colunas e os mesmos
+    valores — o arquivo baixado é exatamente o recorte visto no JSON.
+
+    O CSV usa codificação UTF-8 com BOM, separador ponto-e-vírgula e textos entre aspas
+    duplas: abre no Excel em português sem etapa de importação.
+
+    **As exportações não paginam**: `csv` e `xlsx` devolvem o recorte inteiro,
+    independentemente de `limit`. Para baixar tudo de uma vez, use `/download/completo`,
+    que entrega um ZIP com todos os conjuntos, um LEIAME e o dicionário de dados.
+
+    ## Paginação
+
+    Respostas JSON de listagem trazem `pagination` com `offset`, `fetch_size` e
+    `total_records`, além de `returned_count` e `has_more`. Para percorrer tudo, some
+    `returned_count` ao `offset` enquanto `has_more` for verdadeiro. A ordenação é estável,
+    então não há risco de pular ou repetir registros entre páginas.
+
+    ## Limites e uso
+
+    Sem autenticação e sem cota. Tamanho de página padrão 25, máximo 500 (valores maiores
+    são reduzidos silenciosamente). Exportações limitadas a 100.000 linhas. As respostas
+    trazem `Cache-Control: max-age=300`; um cache local evita repetir consultas idênticas.
+
+    ## Dado pessoal
+
+    Esta API não expõe dado pessoal. Nomes, CPF, e-mail e telefone de representantes legais
+    não estão em nenhum endpoint, assim como campos de texto livre preenchidos durante a
+    análise (observações e pareceres internos). A empresa aparece por razão social e CNPJ,
+    que são dados de pessoa jurídica.
+
+  contact:
+    name: Gerência de Fiscalização Portuária (GPF/SFC) - ANTAQ
+    email: gpf@antaq.gov.br
+    url: https://www.gov.br/antaq
+  license:
+    name: Dados Abertos - Governo Federal
+    url: https://www.gov.br/governodigital/pt-br/dados-abertos
+
+servers:
+  - url: https://prd-apex.antaq.gov.br/ords/sfc_sai/dados
+    description: Produção
+  - url: https://des-apex.antaq.gov.br/ords/sai/dados
+    description: Desenvolvimento (dados de teste, sem valor oficial)
+
+tags:
+  - name: Descoberta
+    description: Ponto de entrada e metadados da própria API.
+  - name: Contratos
+    description: Contratos com obrigação de investimento e sua execução.
+  - name: Consolidados
+    description: Agregações prontas, equivalentes às do Painel Financeiro público do SAI.
+  - name: Referência
+    description: Índices econômicos, catálogos de códigos e dicionário de dados.
+  - name: Download
+    description: Pacote completo de dados abertos.
+
+paths:
+
+  /:
+    get:
+      tags: [Descoberta]
+      summary: Documento de descoberta
+      description: |
+        Lista os recursos disponíveis, os parâmetros aceitos e os valores válidos.
+        Serve como ponto de partida para quem chega à API sem ler esta documentação.
+      operationId: raiz
+      responses:
+        '200':
+          description: Descrição da API.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Raiz' }
+
+  /contratos:
+    get:
+      tags: [Contratos]
+      summary: Lista os contratos com obrigação de investimento
+      description: |
+        Um registro por contrato, com dados cadastrais, investimento global e — quando já
+        houve fiscalização — a execução mais recente validada.
+
+        Contratos ainda não fiscalizados **continuam na lista**, com
+        `possui_execucao_validada = 0` e campos de execução nulos. Use
+        `com_execucao_validada=1` para restringir aos que já têm execução publicada.
+      operationId: listarContratos
+      parameters:
+        - $ref: '#/components/parameters/CodContrato'
+        - $ref: '#/components/parameters/Cnpj'
+        - $ref: '#/components/parameters/Regiao'
+        - $ref: '#/components/parameters/Uf'
+        - $ref: '#/components/parameters/Porto'
+        - $ref: '#/components/parameters/TipoInstalacao'
+        - $ref: '#/components/parameters/PerfilCarga'
+        - $ref: '#/components/parameters/Situacao'
+        - $ref: '#/components/parameters/Reidi'
+        - $ref: '#/components/parameters/ComExecucaoValidada'
+        - $ref: '#/components/parameters/PeriodoDe'
+        - $ref: '#/components/parameters/PeriodoAte'
+        - $ref: '#/components/parameters/DataReajuste'
+        - $ref: '#/components/parameters/Formato'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Contratos encontrados.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/RespostaPaginada'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Contrato' }
+            text/csv:
+              schema: { type: string, format: binary }
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+        '400': { $ref: '#/components/responses/Erro400' }
+
+  /contratos/{id}:
+    get:
+      tags: [Contratos]
+      summary: Ficha completa de um contrato
+      description: |
+        Reúne, em uma única resposta, o contrato, o histórico de índices que compõem seu
+        fator de correção e a série completa de acompanhamentos validados.
+      operationId: obterContrato
+      parameters:
+        - $ref: '#/components/parameters/IdExecucao'
+        - $ref: '#/components/parameters/DataReajuste'
+      responses:
+        '200':
+          description: Contrato encontrado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ContratoDetalhe' }
+        '400': { $ref: '#/components/responses/Erro400' }
+        '404': { $ref: '#/components/responses/Erro404' }
+
+  /contratos/{id}/acompanhamentos:
+    get:
+      tags: [Contratos]
+      summary: Acompanhamentos validados de um contrato
+      description: Série cronológica dos relatórios já concluídos pela Fiscalização.
+      operationId: listarAcompanhamentosDoContrato
+      parameters:
+        - $ref: '#/components/parameters/IdExecucao'
+        - $ref: '#/components/parameters/PeriodoDe'
+        - $ref: '#/components/parameters/PeriodoAte'
+        - $ref: '#/components/parameters/DataReajuste'
+        - $ref: '#/components/parameters/Formato'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Acompanhamentos do contrato.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/RespostaPaginada'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Acompanhamento' }
+            text/csv: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/Erro400' }
+        '404': { $ref: '#/components/responses/Erro404' }
+
+  /contratos/{id}/indices:
+    get:
+      tags: [Contratos]
+      summary: Índices econômicos do contrato
+      description: |
+        Períodos de vigência de cada índice previsto na cláusula de reajuste. É o que
+        explica como o `*_fator` foi composto: havendo troca de índice no meio do contrato,
+        o fator é o produto das razões de número-índice de cada trecho.
+      operationId: listarIndicesDoContrato
+      parameters:
+        - $ref: '#/components/parameters/IdExecucao'
+      responses:
+        '200':
+          description: Períodos de índice do contrato.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IndicesDoContrato' }
+        '400': { $ref: '#/components/responses/Erro400' }
+        '404': { $ref: '#/components/responses/Erro404' }
+
+  /acompanhamentos:
+    get:
+      tags: [Contratos]
+      summary: Lista todos os acompanhamentos validados
+      description: |
+        Todos os relatórios já concluídos pela Fiscalização, de todos os contratos. É a
+        base para analisar a execução ao longo do tempo, e não apenas a posição mais recente.
+      operationId: listarAcompanhamentos
+      parameters:
+        - $ref: '#/components/parameters/CodContrato'
+        - $ref: '#/components/parameters/Cnpj'
+        - $ref: '#/components/parameters/Regiao'
+        - $ref: '#/components/parameters/Uf'
+        - $ref: '#/components/parameters/Porto'
+        - $ref: '#/components/parameters/TipoInstalacao'
+        - $ref: '#/components/parameters/PerfilCarga'
+        - $ref: '#/components/parameters/Situacao'
+        - $ref: '#/components/parameters/Reidi'
+        - $ref: '#/components/parameters/PeriodoDe'
+        - $ref: '#/components/parameters/PeriodoAte'
+        - $ref: '#/components/parameters/DataReajuste'
+        - $ref: '#/components/parameters/Formato'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Acompanhamentos encontrados.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/RespostaPaginada'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Acompanhamento' }
+            text/csv: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/Erro400' }
+
+  /consolidado/resumo:
+    get:
+      tags: [Consolidados]
+      summary: Totais da carteira
+      description: |
+        Os mesmos números dos cartões do Painel Financeiro público do SAI. Aceita todos os
+        filtros, de modo que o resumo pode ser calculado sobre qualquer recorte.
+
+        Os totais de execução consideram apenas contratos já fiscalizados; o campo
+        `cobertura_execucao_pct` informa que fração da carteira isso representa.
+      operationId: obterResumo
+      parameters:
+        - $ref: '#/components/parameters/CodContrato'
+        - $ref: '#/components/parameters/Cnpj'
+        - $ref: '#/components/parameters/Regiao'
+        - $ref: '#/components/parameters/Uf'
+        - $ref: '#/components/parameters/Porto'
+        - $ref: '#/components/parameters/TipoInstalacao'
+        - $ref: '#/components/parameters/PerfilCarga'
+        - $ref: '#/components/parameters/Situacao'
+        - $ref: '#/components/parameters/Reidi'
+        - $ref: '#/components/parameters/ComExecucaoValidada'
+        - $ref: '#/components/parameters/PeriodoDe'
+        - $ref: '#/components/parameters/PeriodoAte'
+        - $ref: '#/components/parameters/DataReajuste'
+      responses:
+        '200':
+          description: Totais da carteira.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaResumo' }
+        '400': { $ref: '#/components/responses/Erro400' }
+
+  /consolidado/por/{dimensao}:
+    get:
+      tags: [Consolidados]
+      summary: Agregação por dimensão
+      description: |
+        Agrupa a carteira pela dimensão indicada. A soma dos grupos reproduz o total de
+        `/consolidado/resumo` — nenhum contrato é contado duas vezes.
+
+        **Observação sobre `perfil_carga`:** um contrato pode ter vários perfis de carga.
+        Para preservar a aditividade, cada contrato é atribuído ao **primeiro** perfil
+        declarado, mesmo critério adotado no Painel Financeiro. Distribuir o contrato entre
+        todos os seus perfis faria a soma dos grupos superar o total da carteira.
+
+        **Observação sobre as dimensões de ano:** contratos sem a data correspondente ficam
+        de fora, então a soma dos grupos pode ser menor que o total.
+      operationId: obterConsolidadoPorDimensao
+      parameters:
+        - name: dimensao
+          in: path
+          required: true
+          description: Dimensão de agrupamento.
+          schema:
+            type: string
+            enum: [regiao, uf, empresa, porto, situacao, tipo_instalacao, perfil_carga,
+                   indice, ano_inicio_obrigacao, ano_conclusao_obrigacao, ano_inicio_contrato]
+        - name: top
+          in: query
+          description: Limita a resposta aos N maiores grupos por investimento. Omitido, devolve todos.
+          schema: { type: integer, minimum: 1 }
+          example: 10
+        - $ref: '#/components/parameters/Regiao'
+        - $ref: '#/components/parameters/Uf'
+        - $ref: '#/components/parameters/Porto'
+        - $ref: '#/components/parameters/TipoInstalacao'
+        - $ref: '#/components/parameters/PerfilCarga'
+        - $ref: '#/components/parameters/Situacao'
+        - $ref: '#/components/parameters/Reidi'
+        - $ref: '#/components/parameters/ComExecucaoValidada'
+        - $ref: '#/components/parameters/PeriodoDe'
+        - $ref: '#/components/parameters/PeriodoAte'
+        - $ref: '#/components/parameters/DataReajuste'
+        - $ref: '#/components/parameters/Formato'
+      responses:
+        '200':
+          description: Grupos agregados, do maior investimento para o menor.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaAgrupada' }
+            text/csv: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/Erro400' }
+
+  /consolidado/evolucao-mensal:
+    get:
+      tags: [Consolidados]
+      summary: Execução por mês de referência
+      description: |
+        Série mensal construída a partir de **todos** os acompanhamentos validados, e não
+        apenas do mais recente de cada contrato. Os valores são os do período, permitindo
+        ver o ritmo de execução ao longo do tempo.
+      operationId: obterEvolucaoMensal
+      parameters:
+        - $ref: '#/components/parameters/Regiao'
+        - $ref: '#/components/parameters/Uf'
+        - $ref: '#/components/parameters/Porto'
+        - $ref: '#/components/parameters/Reidi'
+        - $ref: '#/components/parameters/PeriodoDe'
+        - $ref: '#/components/parameters/PeriodoAte'
+        - $ref: '#/components/parameters/DataReajuste'
+        - $ref: '#/components/parameters/Formato'
+      responses:
+        '200':
+          description: Série mensal.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaEvolucaoMensal' }
+            text/csv: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/Erro400' }
+
+  /consolidado/evolucao-carteira:
+    get:
+      tags: [Consolidados]
+      summary: Formação da carteira ao longo do tempo
+      description: |
+        Quantidade de contratos e investimento por mês de início de contrato, com os
+        respectivos acumulados. Mostra como a carteira de investimentos se formou.
+      operationId: obterEvolucaoCarteira
+      parameters:
+        - $ref: '#/components/parameters/Regiao'
+        - $ref: '#/components/parameters/Uf'
+        - $ref: '#/components/parameters/Reidi'
+        - $ref: '#/components/parameters/DataReajuste'
+        - $ref: '#/components/parameters/Formato'
+      responses:
+        '200':
+          description: Série acumulada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaEvolucaoCarteira' }
+            text/csv: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/Erro400' }
+
+  /consolidado/faixas-execucao:
+    get:
+      tags: [Consolidados]
+      summary: Distribuição por faixa de execução física
+      description: |
+        Quantos contratos, e quanto investimento, estão em cada faixa de percentual físico
+        executado. Contratos ainda não fiscalizados formam a faixa
+        "Sem execução validada" — eles não são zero, apenas não têm medição publicada.
+      operationId: obterFaixasExecucao
+      parameters:
+        - $ref: '#/components/parameters/Regiao'
+        - $ref: '#/components/parameters/Uf'
+        - $ref: '#/components/parameters/Reidi'
+        - $ref: '#/components/parameters/DataReajuste'
+        - $ref: '#/components/parameters/Formato'
+      responses:
+        '200':
+          description: Faixas de execução.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaFaixas' }
+            text/csv: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/Erro400' }
+
+  /consolidado/reidi:
+    get:
+      tags: [Consolidados]
+      summary: Comparativo REIDI
+      description: |
+        Compara contratos com e sem REIDI (Regime Especial de Incentivos para o
+        Desenvolvimento da Infraestrutura), em quantidade e em valor.
+      operationId: obterReidi
+      parameters:
+        - $ref: '#/components/parameters/Regiao'
+        - $ref: '#/components/parameters/Uf'
+        - $ref: '#/components/parameters/DataReajuste'
+        - $ref: '#/components/parameters/Formato'
+      responses:
+        '200':
+          description: Comparativo.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaReidi' }
+            text/csv: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/Erro400' }
+
+  /mapa:
+    get:
+      tags: [Consolidados]
+      summary: Contratos georreferenciados
+      description: |
+        Conjunto enxuto, pronto para plotagem. Coordenadas ausentes ou fora do intervalo
+        válido são excluídas, então todo registro devolvido pode ser plotado diretamente.
+      operationId: obterMapa
+      parameters:
+        - $ref: '#/components/parameters/Regiao'
+        - $ref: '#/components/parameters/Uf'
+        - $ref: '#/components/parameters/TipoInstalacao'
+        - $ref: '#/components/parameters/Situacao'
+        - $ref: '#/components/parameters/Reidi'
+        - $ref: '#/components/parameters/ComExecucaoValidada'
+        - $ref: '#/components/parameters/DataReajuste'
+        - $ref: '#/components/parameters/Formato'
+      responses:
+        '200':
+          description: Pontos georreferenciados.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaMapa' }
+            text/csv: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/Erro400' }
+
+  /indices:
+    get:
+      tags: [Referência]
+      summary: Índices econômicos utilizados
+      description: |
+        Índices previstos nas cláusulas de reajuste, com a cobertura de cada série.
+        `ultima_competencia` é o limite até onde a correção pode ser calculada.
+      operationId: listarIndices
+      responses:
+        '200':
+          description: Índices disponíveis.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaIndices' }
+
+  /indices/{sigla}:
+    get:
+      tags: [Referência]
+      summary: Série histórica de um índice
+      description: |
+        Números-índice mensais e variações. O número-índice é encadeado em base 100; o
+        fator entre dois meses é a razão entre os números-índice correspondentes.
+      operationId: obterSerieIndice
+      parameters:
+        - name: sigla
+          in: path
+          required: true
+          description: Sigla do índice, conforme `/indices`.
+          schema: { type: string, enum: [IPCA, IGPM, INPC, INCC] }
+        - name: de
+          in: query
+          description: Competência inicial. `YYYY-MM`, `YYYY-MM-DD` ou `DD/MM/YYYY`.
+          schema: { type: string }
+          example: '2024-01'
+        - name: ate
+          in: query
+          description: Competência final.
+          schema: { type: string }
+          example: '2024-12'
+        - $ref: '#/components/parameters/Formato'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Série histórica.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaSerieIndice' }
+            text/csv: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/Erro400' }
+        '404': { $ref: '#/components/responses/Erro404' }
+
+  /dominios:
+    get:
+      tags: [Referência]
+      summary: Catálogos de códigos
+      description: |
+        Todos os domínios e seus valores: situação do contrato, tipo de instalação, perfil
+        de carga, status de acompanhamento e os diagnósticos de correção monetária.
+
+        O campo `aparece_na_api_publica` indica se aquele código chega a aparecer nesta
+        API — status de acompanhamento não validados, por exemplo, constam do catálogo para
+        documentação, mas nunca aparecem nos dados.
+      operationId: listarDominios
+      responses:
+        '200':
+          description: Catálogos.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaDominios' }
+
+  /metadados:
+    get:
+      tags: [Referência]
+      summary: Cobertura, limites e dicionário de dados
+      description: |
+        Quantos contratos e acompanhamentos estão publicados, qual a data da última
+        validação, quais os limites operacionais e a descrição de cada campo.
+
+        O dicionário é extraído dos comentários dos objetos no banco de dados — é a mesma
+        fonte que documenta o modelo internamente, e não uma cópia que possa divergir.
+      operationId: obterMetadados
+      responses:
+        '200':
+          description: Metadados da API.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RespostaMetadados' }
+
+  /download/completo:
+    get:
+      tags: [Download]
+      summary: Pacote ZIP com todos os conjuntos
+      description: |
+        Arquivo ZIP contendo todos os conjuntos de dados em CSV, um `LEIAME.txt` com a
+        procedência e o critério de publicidade, e o dicionário de dados.
+
+        Respeita os filtros e a `data_reajuste` da requisição: é possível baixar o pacote
+        de uma região específica, ou corrigido para uma data de referência escolhida.
+      operationId: baixarPacoteCompleto
+      parameters:
+        - $ref: '#/components/parameters/Regiao'
+        - $ref: '#/components/parameters/Uf'
+        - $ref: '#/components/parameters/Reidi'
+        - $ref: '#/components/parameters/ComExecucaoValidada'
+        - $ref: '#/components/parameters/DataReajuste'
+      responses:
+        '200':
+          description: Pacote ZIP.
+          content:
+            application/zip:
+              schema: { type: string, format: binary }
+        '400': { $ref: '#/components/responses/Erro400' }
+
+components:
+
+  parameters:
+    IdExecucao:
+      name: id
+      in: path
+      required: true
+      description: Identificador do contrato (`id_execucao`).
+      schema: { type: integer }
+      example: 165
+    CodContrato:
+      name: cod_contrato
+      in: query
+      description: Código do contrato, correspondência exata.
+      schema: { type: string }
+      example: 10/2022
+    Cnpj:
+      name: cnpj
+      in: query
+      description: CNPJ da empresa, com ou sem pontuação.
+      schema: { type: string }
+      example: '30837081000140'
+    Regiao:
+      name: regiao
+      in: query
+      description: Região geográfica.
+      schema:
+        type: string
+        enum: [Norte, Nordeste, Sudeste, Sul, Centro-Oeste]
+    Uf:
+      name: uf
+      in: query
+      description: Sigla da unidade federativa, duas letras.
+      schema: { type: string, minLength: 2, maxLength: 2 }
+      example: SP
+    Porto:
+      name: porto
+      in: query
+      description: Trecho do nome do porto ou terminal. Busca parcial, sem distinção de maiúsculas.
+      schema: { type: string }
+      example: Santos
+    TipoInstalacao:
+      name: tipo_instalacao
+      in: query
+      description: Código ou nome do tipo de instalação. Ver `/dominios`.
+      schema: { type: string }
+      example: Terminal de Uso Privado (TUP)
+    PerfilCarga:
+      name: perfil_carga
+      in: query
+      description: Código ou trecho do nome do perfil de carga. Ver `/dominios`.
+      schema: { type: string }
+      example: Granel
+    Situacao:
+      name: situacao
+      in: query
+      description: Código ou nome da situação do contrato. Ver `/dominios`.
+      schema: { type: string }
+    Reidi:
+      name: reidi
+      in: query
+      description: 1 para contratos com REIDI, 0 para os demais.
+      schema: { type: integer, enum: [0, 1] }
+    ComExecucaoValidada:
+      name: com_execucao_validada
+      in: query
+      description: |
+        1 restringe aos contratos com acompanhamento já concluído pela Fiscalização;
+        0 traz apenas os que ainda não têm execução publicada.
+      schema: { type: integer, enum: [0, 1] }
+    PeriodoDe:
+      name: periodo_de
+      in: query
+      description: Data inicial do período de referência da execução. `YYYY-MM-DD`, `YYYY-MM` ou `DD/MM/YYYY`.
+      schema: { type: string }
+      example: '2024-01'
+    PeriodoAte:
+      name: periodo_ate
+      in: query
+      description: Data final do período de referência da execução.
+      schema: { type: string }
+      example: '2024-12'
+    DataReajuste:
+      name: data_reajuste
+      in: query
+      description: |
+        Mês para o qual os valores monetários são corrigidos, pelos índices do próprio
+        contrato. Aceita `YYYY-MM`, `MM/YYYY` ou `YYYY-MM-DD` (sempre truncado ao mês).
+
+        Omitido, usa o mês corrente. Como as séries de índice são publicadas com defasagem,
+        o padrão normalmente resulta em `*_correcao = APLICADA_ATE_ULTIMA_COMPETENCIA`.
+        Para obter correção integral, informe a última competência disponível em
+        `/indices`.
+      schema: { type: string }
+      example: '2026-08'
+    Formato:
+      name: formato
+      in: query
+      description: |
+        Formato da resposta. `csv` e `xlsx` devolvem o recorte **inteiro**, sem paginar, como
+        anexo para download.
+      schema: { type: string, enum: [json, csv, xlsx], default: json }
+    Offset:
+      name: offset
+      in: query
+      description: Registro inicial da página.
+      schema: { type: integer, minimum: 0, default: 0 }
+    Limit:
+      name: limit
+      in: query
+      description: Tamanho da página. Valores acima de 500 são reduzidos a 500.
+      schema: { type: integer, minimum: 1, maximum: 500, default: 25 }
+
+  responses:
+    Erro400:
+      description: Parâmetro inválido. A mensagem indica qual e o que se espera.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erro' }
+          example:
+            status: 400
+            error: Bad Request
+            code: VALIDATION_ERROR
+            message: 'Parametro uf deve ter duas letras. Recebido: "SAO PAULO".'
+    Erro404:
+      description: Recurso não encontrado.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Erro' }
+          example:
+            status: 404
+            error: Not Found
+            code: NOT_FOUND
+            message: 'Contrato nao encontrado para id_execucao = 999999.'
+
+  schemas:
+
+    Metadados:
+      type: object
+      description: Bloco de procedência presente em toda resposta JSON.
+      properties:
+        fonte: { type: string, description: Sistema de origem dos dados. }
+        versao_api: { type: string, example: 1.0.0 }
+        licenca: { type: string }
+        gerado_em:
+          type: string
+          description: Instante da geração, horário de Brasília.
+          example: '2026-09-18T15:06:12'
+        criterio_publicidade:
+          type: string
+          description: Critério aplicado para decidir o que é publicado.
+        data_reajuste:
+          type: string
+          description: Mês efetivamente usado na correção monetária.
+          example: '2026-09'
+        data_reajuste_informada:
+          type: boolean
+          description: Falso quando a data veio do padrão (mês corrente) e não da requisição.
+        ultima_competencia_indices:
+          type: object
+          additionalProperties: { type: string }
+          description: Última competência publicada de cada índice, por sigla.
+          example: { IPCA: '2026-08', IGPM: '2026-08' }
+
+    Paginacao:
+      type: object
+      properties:
+        offset: { type: integer }
+        fetch_size: { type: integer, description: Tamanho de página efetivamente aplicado. }
+        total_records: { type: integer, description: 'Total de registros no recorte, ignorando a paginação.' }
+
+    RespostaPaginada:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        pagination: { $ref: '#/components/schemas/Paginacao' }
+        returned_count: { type: integer, description: Quantidade de registros nesta página. }
+        has_more: { type: boolean, description: Verdadeiro se ainda há registros após esta página. }
+
+    Contrato:
+      type: object
+      description: |
+        Um contrato com obrigação de investimento. Campos de execução ficam nulos enquanto
+        não houver acompanhamento concluído pela Fiscalização.
+      properties:
+        id_execucao: { type: integer, description: Identificador do contrato nesta API. }
+        cod_contrato: { type: string, description: 'Código do contrato., example: 10/2022' }
+        numero_versao: { type: integer, description: Número da versão vigente do contrato. }
+        versao: { type: string, description: 'Descrição da versão: Original, 1º Aditivo, etc.' }
+        cnpj: { type: string, description: 'CNPJ da empresa, formatado.' }
+        empresa: { type: string, description: Razão social ou nome fantasia da empresa. }
+        porto_terminal: { type: string, description: Nome do porto ou terminal. }
+        local_fiscalizacao: { type: string, description: Município e UF da instalação. }
+        uf: { type: string, description: Unidade federativa. }
+        regiao: { type: string, description: Região geográfica. }
+        latitude: { type: number, format: double, nullable: true, description: 'Latitude da instalação, em graus decimais.' }
+        longitude: { type: number, format: double, nullable: true, description: 'Longitude da instalação, em graus decimais.' }
+        tipo_instalacao: { type: string, description: 'TUP, arrendamento, STS, etc.' }
+        tipo_fiscalizacao: { type: string, description: Natureza da fiscalização aplicável. }
+        perfil_carga: { type: string, description: 'Perfis de carga movimentados, separados por vírgula.' }
+        situacao: { type: string, description: Situação do empreendimento. }
+        reidi: { type: integer, enum: [0, 1], description: 1 se o contrato tem REIDI. }
+        contrato_vigente: { type: integer, enum: [0, 1], description: '1 quando a data corrente está dentro do prazo do contrato.' }
+        data_inicio_contrato: { type: string, format: date, nullable: true, description: 'Data de início da vigência do contrato.' }
+        data_fim_contrato: { type: string, format: date, nullable: true, description: 'Data de término da vigência do contrato.' }
+        data_inicio_obrigacao: { type: string, format: date, nullable: true, description: Início do prazo da obrigação de investir. }
+        data_conclusao_obrigacao: { type: string, format: date, nullable: true, description: Prazo final para concluir o investimento. }
+        data_inicio_obras: { type: string, format: date, nullable: true, description: 'Data informada de início das obras.' }
+        dias_apos_prazo_obrigacao:
+          type: integer
+          nullable: true
+          description: Dias decorridos além do prazo de conclusão. Negativo indica prazo ainda em curso.
+        investimento_global_nominal:
+          type: number
+          nullable: true
+          description: Investimento total previsto, em reais, na data-base contratual.
+        investimento_global_data_base: { type: string, format: date, nullable: true, description: Data-base do valor nominal. }
+        investimento_global_indice: { type: string, nullable: true, description: Sigla do índice vigente de reajuste. }
+        investimento_global_fator: { type: number, nullable: true, description: 'Fator de correção acumulado, 6 casas decimais.' }
+        investimento_global_corrigido: { type: number, nullable: true, description: '`nominal × fator`, arredondado a 2 casas.' }
+        investimento_global_correcao: { $ref: '#/components/schemas/StatusCorrecao' }
+        possui_execucao_validada:
+          type: integer
+          enum: [0, 1]
+          description: 1 quando há ao menos um acompanhamento concluído pela Fiscalização.
+        qtd_acompanhamentos_validados: { type: integer, description: 'Quantidade de relatórios já concluídos pela Fiscalização.' }
+        data_ultima_validacao: { type: string, format: date, nullable: true, description: 'Data da validação mais recente.' }
+        id_ultimo_acompanhamento: { type: integer, nullable: true, description: 'Identificador do acompanhamento que originou os campos de execução.' }
+        data_referencia_execucao: { type: string, format: date, nullable: true, description: Fim do período de referência do último acompanhamento validado. }
+        executado_nominal: { type: number, nullable: true, description: 'Investimento acumulado executado, validado pela Fiscalização.' }
+        executado_data_base: { type: string, format: date, nullable: true, description: 'Data-base do valor executado nominal.' }
+        executado_fator: { type: number, nullable: true, description: 'Fator de correção aplicado ao valor executado.' }
+        executado_corrigido: { type: number, nullable: true, description: 'Valor executado corrigido para a data de reajuste.' }
+        executado_correcao: { $ref: '#/components/schemas/StatusCorrecao' }
+        programado_nominal: { type: number, nullable: true, description: Investimento que estava programado para o mesmo período. }
+        programado_data_base: { type: string, format: date, nullable: true, description: 'Data-base do valor programado nominal.' }
+        programado_fator: { type: number, nullable: true, description: 'Fator de correção aplicado ao valor programado.' }
+        programado_corrigido: { type: number, nullable: true, description: 'Valor programado corrigido para a data de reajuste.' }
+        execucao_fisica_pct: { type: number, nullable: true, description: 'Percentual físico executado, conforme validado.' }
+        execucao_financeira_pct: { type: number, nullable: true, description: '`executado_corrigido / investimento_global_corrigido × 100`.' }
+        concluido: { type: integer, enum: [0, 1], description: 1 quando a execução física atingiu 100%. }
+        prazo_vencido_sem_conclusao: { type: integer, enum: [0, 1], description: 1 quando o prazo de conclusão passou sem execução física de 100%. }
+        url_processo_sei: { type: string, nullable: true, description: Link para o processo no SEI da ANTAQ. }
+
+    Acompanhamento:
+      type: object
+      description: |
+        Relatório de acompanhamento (RAPIR) concluído pela Fiscalização. Apenas relatórios
+        validados aparecem nesta API.
+      properties:
+        id_acompanhamento: { type: integer, description: 'Identificador do relatório de acompanhamento.' }
+        id_execucao: { type: integer, description: Contrato a que se refere. }
+        cod_contrato: { type: string, description: 'Código do contrato a que o relatório se refere.' }
+        empresa: { type: string, description: 'Empresa responsável pelo contrato.' }
+        porto_terminal: { type: string, description: 'Porto ou terminal do contrato.' }
+        uf: { type: string, description: 'Unidade federativa da instalação.' }
+        regiao: { type: string, description: 'Região geográfica da instalação.' }
+        numero_relatorio: { type: string, nullable: true, description: 'Número do relatório atribuído pela Fiscalização.' }
+        processo_sei: { type: string, nullable: true, description: 'Número do processo SEI que trata do relatório.' }
+        data_relatorio: { type: string, format: date, nullable: true, description: 'Data de emissão do relatório.' }
+        periodo_inicio: { type: string, format: date, nullable: true, description: Início do período de referência. }
+        periodo_fim: { type: string, format: date, nullable: true, description: Fim do período de referência. }
+        data_validacao: { type: string, format: date, nullable: true, description: Data em que a Fiscalização concluiu a análise. }
+        status: { type: string, description: 'Situação do acompanhamento: Concluído ou REFIN gerado.' }
+        executado_nominal: { type: number, nullable: true, description: Investimento acumulado executado até o fim do período. }
+        executado_data_base: { type: string, format: date, nullable: true, description: 'Data-base do valor executado nominal.' }
+        executado_fator: { type: number, nullable: true, description: 'Fator de correção aplicado ao valor executado.' }
+        executado_corrigido: { type: number, nullable: true, description: 'Valor executado corrigido para a data de reajuste.' }
+        executado_correcao: { $ref: '#/components/schemas/StatusCorrecao' }
+        programado_nominal: { type: number, nullable: true, description: 'Investimento acumulado programado até o fim do período.' }
+        programado_data_base: { type: string, format: date, nullable: true, description: 'Data-base do valor programado nominal.' }
+        programado_fator: { type: number, nullable: true, description: 'Fator de correção aplicado ao valor programado.' }
+        programado_corrigido: { type: number, nullable: true, description: 'Valor programado corrigido para a data de reajuste.' }
+        executado_periodo_nominal: { type: number, nullable: true, description: 'Executado apenas no período, e não acumulado.' }
+        programado_periodo_nominal: { type: number, nullable: true, description: 'Programado apenas no período, e não acumulado.' }
+        nao_previsto_nominal: { type: number, nullable: true, description: Investimento realizado fora do previsto no cronograma. }
+        execucao_fisica_pct: { type: number, nullable: true, description: Percentual físico acumulado. }
+        execucao_fisica_periodo_pct: { type: number, nullable: true, description: Percentual físico do período. }
+        obras_iniciadas: { type: integer, enum: [0, 1], nullable: true, description: '1 quando as obras já haviam começado no período.' }
+        reidi: { type: integer, enum: [0, 1], nullable: true, description: '1 quando houve uso do benefício REIDI no período.' }
+        reidi_valor: { type: number, nullable: true, description: Valor com benefício REIDI no período. }
+        ultimo_validado: { type: integer, enum: [0, 1], description: 1 no acompanhamento mais recente do contrato. }
+        url_processo_sei: { type: string, nullable: true, description: 'Link para o processo no SEI da ANTAQ.' }
+
+    StatusCorrecao:
+      type: string
+      nullable: true
+      description: |
+        Diagnóstico do cálculo de correção monetária. Ver a seção "Diagnóstico da correção"
+        na descrição da API.
+      enum:
+        - APLICADA
+        - APLICADA_ATE_ULTIMA_COMPETENCIA
+        - NAO_APLICAVEL
+        - SEM_DATA_BASE
+        - SEM_INDICE_CADASTRADO
+        - SEM_SERIE
+        - BASE_ANTERIOR_A_SERIE
+        - INDETERMINADO
+
+    ContratoDetalhe:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        contrato:
+          type: array
+          maxItems: 1
+          items:
+            allOf:
+              - $ref: '#/components/schemas/Contrato'
+              - type: object
+                properties:
+                  objeto: { type: string, nullable: true, description: Objeto do contrato. }
+        indices:
+          type: array
+          description: Períodos de vigência dos índices de reajuste.
+          items: { $ref: '#/components/schemas/PeriodoIndice' }
+        acompanhamentos:
+          type: array
+          description: Série de acompanhamentos validados, em ordem cronológica.
+          items:
+            type: object
+            properties:
+              id_acompanhamento: { type: integer }
+              numero_relatorio: { type: string, nullable: true }
+              data_referencia: { type: string, format: date, nullable: true }
+              data_validacao: { type: string, format: date, nullable: true }
+              executado_nominal: { type: number, nullable: true }
+              programado_nominal: { type: number, nullable: true }
+              execucao_fisica_pct: { type: number, nullable: true }
+
+    PeriodoIndice:
+      type: object
+      properties:
+        id_indice: { type: integer, description: Código do tipo de índice. 0 significa sem correção. }
+        indice: { type: string, nullable: true, description: Sigla do índice. }
+        vigencia_inicio: { type: string, format: date, nullable: true }
+        vigencia_fim: { type: string, format: date, nullable: true, description: Nulo indica período ainda vigente. }
+        vigente: { type: integer, enum: [0, 1] }
+
+    IndicesDoContrato:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        id_execucao: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PeriodoIndice' }
+
+    Resumo:
+      type: object
+      properties:
+        contratos: { type: integer, description: Contratos no recorte. }
+        contratos_com_execucao_validada: { type: integer }
+        cobertura_execucao_pct: { type: number, description: Fração da carteira com execução já fiscalizada. }
+        investimento_global_nominal: { type: number }
+        investimento_global_corrigido: { type: number }
+        contratos_reidi: { type: integer }
+        investimento_reidi_corrigido: { type: number }
+        executado_nominal: { type: number, description: Soma apenas dos contratos já fiscalizados. }
+        executado_corrigido: { type: number }
+        programado_nominal: { type: number }
+        programado_corrigido: { type: number }
+        execucao_financeira_pct: { type: number }
+        execucao_fisica_media_pct: { type: number, description: Média simples entre os contratos com medição. }
+        contratos_concluidos: { type: integer }
+        contratos_prazo_vencido: { type: integer, description: Prazo de conclusão vencido sem execução física de 100%. }
+
+    RespostaResumo:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        observacao: { type: string, description: Advertência sobre a cobertura dos números de execução. }
+        resumo:
+          type: array
+          maxItems: 1
+          items: { $ref: '#/components/schemas/Resumo' }
+
+    RespostaAgrupada:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              grupo: { type: string, description: Valor da dimensão agrupada. }
+              contratos: { type: integer }
+              contratos_com_execucao_validada: { type: integer }
+              investimento_global_nominal: { type: number }
+              investimento_global_corrigido: { type: number }
+              executado_nominal: { type: number }
+              executado_corrigido: { type: number }
+              programado_corrigido: { type: number }
+              execucao_financeira_pct: { type: number, nullable: true }
+              execucao_fisica_media_pct: { type: number, nullable: true }
+              contratos_concluidos: { type: integer }
+              contratos_reidi: { type: integer }
+
+    RespostaEvolucaoMensal:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              competencia: { type: string, example: '2024-06' }
+              acompanhamentos: { type: integer, description: Relatórios validados com referência nesse mês. }
+              contratos: { type: integer, description: Contratos distintos com medição nesse mês. }
+              executado_periodo_nominal: { type: number }
+              executado_periodo_corrigido: { type: number }
+              programado_periodo_nominal: { type: number }
+              programado_periodo_corrigido: { type: number }
+
+    RespostaEvolucaoCarteira:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              competencia: { type: string, example: '2021-04' }
+              contratos_iniciados: { type: integer }
+              contratos_acumulados: { type: integer }
+              investimento_iniciado_nominal: { type: number }
+              investimento_iniciado_corrigido: { type: number }
+              carteira_acumulada_nominal: { type: number }
+              carteira_acumulada_corrigida: { type: number }
+
+    RespostaFaixas:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              faixa_execucao_fisica: { type: string, example: 20-39% }
+              contratos: { type: integer }
+              investimento_global_nominal: { type: number }
+              investimento_global_corrigido: { type: number }
+
+    RespostaReidi:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              grupo: { type: string, enum: [Com REIDI, Sem REIDI] }
+              contratos: { type: integer }
+              participacao_contratos_pct: { type: number }
+              investimento_global_nominal: { type: number }
+              investimento_global_corrigido: { type: number }
+              participacao_valor_pct: { type: number }
+              executado_corrigido: { type: number }
+              contratos_com_execucao_validada: { type: integer }
+
+    RespostaMapa:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id_execucao: { type: integer }
+              cod_contrato: { type: string }
+              empresa: { type: string }
+              porto_terminal: { type: string }
+              local_fiscalizacao: { type: string }
+              uf: { type: string }
+              regiao: { type: string }
+              latitude: { type: number, format: double }
+              longitude: { type: number, format: double }
+              situacao: { type: string }
+              investimento_global_corrigido: { type: number, nullable: true }
+              execucao_fisica_pct: { type: number, nullable: true }
+              possui_execucao_validada: { type: integer, enum: [0, 1] }
+
+    RespostaIndices:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id_indice: { type: integer }
+              sigla: { type: string, example: IPCA }
+              nome: { type: string }
+              fonte: { type: string, description: Instituto responsável pela série. }
+              codigo_serie_fonte: { type: string, nullable: true, description: Código da série no sistema da fonte. }
+              ativo: { type: integer, enum: [0, 1] }
+              primeira_competencia: { type: string, nullable: true, example: '1994-07' }
+              ultima_competencia: { type: string, nullable: true, description: Limite até onde a correção pode ser calculada. }
+              qtd_competencias: { type: integer }
+              contratos_vigentes: { type: integer, description: Contratos que usam este índice atualmente. }
+
+    RespostaSerieIndice:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        pagination: { $ref: '#/components/schemas/Paginacao' }
+        returned_count: { type: integer }
+        has_more: { type: boolean }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sigla: { type: string }
+              competencia: { type: string, example: '2024-06' }
+              numero_indice: { type: number, description: 'Número-índice encadeado, base 100.' }
+              variacao_mes_pct: { type: number, nullable: true }
+              variacao_12meses_pct: { type: number, nullable: true }
+
+    RespostaDominios:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              dominio: { type: string, description: 'Nome do catálogo., example: situacao' }
+              codigo: { type: string, nullable: true }
+              descricao: { type: string }
+              aparece_na_api_publica:
+                type: integer
+                enum: [0, 1]
+                description: 0 indica código que existe no sistema mas nunca aparece nesta API.
+
+    RespostaMetadados:
+      type: object
+      properties:
+        metadados: { $ref: '#/components/schemas/Metadados' }
+        cobertura:
+          type: object
+          properties:
+            contratos: { type: integer }
+            contratos_com_execucao_validada: { type: integer }
+            cobertura_execucao_pct: { type: number }
+            acompanhamentos_validados: { type: integer }
+            data_ultima_validacao: { type: string, format: date, nullable: true }
+        limites:
+          type: object
+          properties:
+            limit_padrao: { type: integer }
+            limit_maximo: { type: integer }
+            export_maximo_linhas: { type: integer }
+        dicionario_dados:
+          type: array
+          description: Descrição de cada campo, extraída dos comentários do banco de dados.
+          items:
+            type: object
+            properties:
+              recurso: { type: string }
+              campo: { type: string }
+              descricao: { type: string }
+
+    Raiz:
+      type: object
+      properties:
+        api: { type: string }
+        orgao: { type: string }
+        versao: { type: string }
+        licenca: { type: string }
+        documentacao: { type: string }
+        contato: { type: string }
+        autenticacao: { type: string }
+        criterio_publicidade: { type: string }
+        recursos:
+          type: array
+          items:
+            type: object
+            properties:
+              caminho: { type: string }
+              descricao: { type: string }
+              formatos: { type: string }
+        parametros_comuns:
+          type: object
+          additionalProperties: { type: string }
+
+    Erro:
+      type: object
+      properties:
+        status: { type: integer, description: Código HTTP. }
+        error: { type: string, description: Nome do status HTTP. }
+        code:
+          type: string
+          enum: [VALIDATION_ERROR, NOT_FOUND, INTERNAL_ERROR]
+          description: Código estável do erro, próprio para tratamento automático.
+        message: { type: string, description: 'Explicação em português, escrita para leitura humana.' }

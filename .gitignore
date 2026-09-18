@@ -1,0 +1,15 @@
+# Este repositorio e publico e serve a GitHub Pages. So entram os artefatos
+# de documentacao. A implementacao (DDL, modulo ORDS, testes) fica no
+# repositorio interno do SAI e nao deve ser espelhada aqui.
+ddl/
+rest/
+sql/
+testes/
+*.sql
+*.pks
+*.pkb
+
+.venv/
+__pycache__/
+.vscode/
+.DS_Store

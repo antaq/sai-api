@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<script>
+  /* O Swagger UI aplica dark-mode conforme a preferencia do sistema. A
+     identidade visual do governo e clara; sem isto, a pagina alterna de
+     aparencia conforme a maquina do visitante. Mesma solucao do SisPAT. */
+  (function () {
+    function claro() {
+      document.documentElement.classList.remove('dark-mode');
+      document.documentElement.classList.add('light-mode');
+    }
+    claro();
+    document.addEventListener('DOMContentLoaded', claro);
+    window.addEventListener('load', function () {
+      claro();
+      /* o bundle so aplica a classe depois de montar; reforca apos o render */
+      setTimeout(claro, 100); setTimeout(claro, 500); setTimeout(claro, 1000);
+    });
+    new MutationObserver(function (ms) {
+      ms.forEach(function (m) {
+        if (m.attributeName === 'class' &&
+            document.documentElement.classList.contains('dark-mode')) claro();
+      });
+    }).observe(document.documentElement, { attributes: true });
+  })();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Pública de Dados do SAI - ANTAQ</title>
+<meta name="description" content="API pública e aberta de dados de investimentos em instalações portuárias fiscalizados pela ANTAQ. Contratos, execução validada, consolidados e séries de índices, em JSON, CSV e Excel.">
+
+<link rel="stylesheet" href="./vendor/swagger-ui/swagger-ui.css"
+      integrity="sha384-9Q2fpS+xeS4ffJy6CagnwoUl+4ldAYhOs9pgZuEKxypVModhmZFzeMlvVsAjf7uT">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9875;</text></svg>">
+
+<style>
+  :root{
+    --azul:#0b3d6e;
+    --azul-escuro:#08294a;
+    --azul-claro:#1668b3;
+    --verde:#1a7f4b;
+    --cinza:#f4f6f8;
+    --borda:#d8dee4;
+    --texto:#1b2733;
+    --texto-fraco:#5a6772;
+  }
+  html{box-sizing:border-box}
+  *,*:before,*:after{box-sizing:inherit}
+  body{margin:0;background:#fff;color:var(--texto);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+       line-height:1.6}
+
+  .topo{background:linear-gradient(135deg,#08294a 0%,#0b3d6e 55%,#1668b3 100%);
+        color:#fff;padding:2.6rem 1.5rem 2.2rem}
+  .wrap{max-width:1180px;margin:0 auto}
+  .topo h1{margin:0 0 .35rem;font-size:2rem;font-weight:700;letter-spacing:-.02em}
+  .topo .org{font-size:.82rem;text-transform:uppercase;letter-spacing:.09em;
+             opacity:.82;margin-bottom:.9rem}
+  .topo p.lead{margin:.5rem 0 1.3rem;font-size:1.05rem;max-width:64ch;opacity:.95}
+  .selos{display:flex;flex-wrap:wrap;gap:.5rem}
+  .selo{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);
+        border-radius:999px;padding:.24rem .8rem;font-size:.8rem;font-weight:500}
+  .selo.verde{background:rgba(26,127,75,.85);border-color:rgba(26,127,75,.9)}
+
+  .faixa{background:var(--cinza);border-bottom:1px solid var(--borda);padding:1.6rem 1.5rem}
+  .cartoes{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(255px,1fr))}
+  .cartao{background:#fff;border:1px solid var(--borda);border-radius:8px;padding:1rem 1.15rem}
+  .cartao h3{margin:0 0 .4rem;font-size:.93rem;color:var(--azul-escuro);
+             text-transform:uppercase;letter-spacing:.04em}
+  .cartao p{margin:0;font-size:.9rem;color:var(--texto-fraco)}
+  .cartao code{background:var(--cinza);padding:.1rem .35rem;border-radius:4px;
+               font-size:.85em;color:var(--azul-escuro)}
+
+  .conteudo{padding:2rem 1.5rem;max-width:1180px;margin:0 auto}
+  .conteudo h2{font-size:1.28rem;color:var(--azul-escuro);margin:2rem 0 .7rem;
+               padding-bottom:.4rem;border-bottom:2px solid var(--borda)}
+  .conteudo h2:first-child{margin-top:0}
+  .conteudo p{margin:.6rem 0}
+  pre{background:#0d1b2a;color:#e6edf3;padding:.95rem 1.1rem;border-radius:7px;
+      overflow-x:auto;font-size:.855rem;line-height:1.5;margin:.7rem 0}
+  pre code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .comentario{color:#7d8ea1}
+  /* As tabelas tem celulas de texto corrido e nao encolhem abaixo de ~430px.
+     Em vez de deixar a PAGINA inteira rolar de lado no celular, rola so a
+     tabela. */
+  .rolagem{overflow-x:auto;margin:.8rem 0;-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;width:100%;min-width:24rem;font-size:.9rem}
+  th,td{border:1px solid var(--borda);padding:.5rem .7rem;text-align:left;vertical-align:top}
+  th{background:var(--cinza);font-weight:600;color:var(--azul-escuro)}
+  td code{background:var(--cinza);padding:.08rem .3rem;border-radius:3px;font-size:.88em}
+  .aviso{border-left:4px solid var(--azul-claro);background:#eef5fb;
+         padding:.85rem 1.1rem;border-radius:0 6px 6px 0;margin:1rem 0;font-size:.93rem}
+  .aviso strong{color:var(--azul-escuro)}
+
+  #swagger-ui{max-width:1180px;margin:0 auto;padding:0 .5rem 3rem}
+  /* O StandaloneLayout traz uma barra com campo de URL que permite carregar
+     qualquer especificacao. Nao faz sentido numa pagina institucional. */
+  .swagger-ui .topbar,
+  section.swagger-ui.swagger-container .topbar{display:none}
+  /* O bloco "info" repetiria, sem tabelas e sem exemplos, o texto que a pagina
+     ja apresenta acima. Fica oculto aqui e intacto no openapi.yaml, que e o
+     que Postman, Insomnia e geradores de cliente consomem. */
+  .swagger-ui .info{display:none}
+  .swagger-ui .scheme-container{background:var(--cinza);box-shadow:none;
+                                border:1px solid var(--borda);border-radius:7px;margin:1.2rem 0}
+
+  .rodape{background:var(--azul-escuro);color:rgba(255,255,255,.85);
+          padding:1.8rem 1.5rem;font-size:.87rem}
+  .rodape a{color:#8dc4f0}
+  .rodape .wrap{display:flex;flex-wrap:wrap;gap:1.4rem;justify-content:space-between}
+
+  @media (max-width:640px){
+    .topo h1{font-size:1.5rem}
+    .rodape .wrap{flex-direction:column;gap:.6rem}
+  }
+</style>
+</head>
+<body>
+
+<header class="topo">
+  <div class="wrap">
+    <div class="org">ANTAQ &middot; Superintendência de Fiscalização e Coordenação</div>
+    <h1>API Pública de Dados do SAI</h1>
+    <p class="lead">
+      Dados abertos dos investimentos em instalações portuárias acompanhados pela ANTAQ:
+      contratos, execução verificada pela Fiscalização, consolidados e séries de índices
+      econômicos — em JSON, CSV e Excel.
+    </p>
+    <div class="selos">
+      <span class="selo verde">Acesso aberto, sem cadastro</span>
+      <span class="selo">v1.0.0</span>
+      <span class="selo">OpenAPI 3.0.3</span>
+      <span class="selo">JSON &middot; CSV &middot; XLSX</span>
+      <span class="selo">Dados Abertos gov.br</span>
+    </div>
+  </div>
+</header>
+
+<section class="faixa">
+  <div class="wrap cartoes">
+    <div class="cartao">
+      <h3>Comece por aqui</h3>
+      <p>O próprio endpoint raiz descreve a API: <code>GET /dados/</code> lista recursos,
+         parâmetros e valores válidos.</p>
+    </div>
+    <div class="cartao">
+      <h3>Sem chave de acesso</h3>
+      <p>Nenhuma autenticação, nenhuma cota. Basta chamar a URL.</p>
+    </div>
+    <div class="cartao">
+      <h3>Planilha pronta</h3>
+      <p>Acrescente <code>?formato=csv</code> ou <code>?formato=xlsx</code> a qualquer
+         listagem e receba o arquivo completo.</p>
+    </div>
+    <div class="cartao">
+      <h3>Tudo de uma vez</h3>
+      <p><code>/dados/download/completo</code> entrega um ZIP com todos os conjuntos,
+         um LEIAME e o dicionário de dados.</p>
+    </div>
+  </div>
+</section>
+
+<main class="conteudo">
+
+  <h2>O que é publicado</h2>
+  <p>
+    Todos os <strong>contratos</strong> com obrigação de investimento constam da API, com
+    dados cadastrais e o investimento global previsto. Essa informação é produzida pela
+    própria ANTAQ e é pública desde a celebração do contrato.
+  </p>
+  <p>
+    Os dados de <strong>execução</strong> — quanto já foi efetivamente investido, qual o
+    percentual físico realizado — seguem critério mais estrito: só aparecem depois que o
+    acompanhamento foi <strong>concluído pela Fiscalização</strong>. Enquanto o relatório do
+    empreendedor está em análise, seus números não são publicados, porque ainda não foram
+    verificados.
+  </p>
+  <div class="aviso">
+    <strong>Ao somar execução, observe a cobertura.</strong>
+    A carteira aparece inteira, mas parte dos contratos vem com
+    <code>possui_execucao_validada = 0</code> e campos de execução nulos. O campo
+    <code>cobertura_execucao_pct</code> de <code>/consolidado/resumo</code> informa que
+    fração da carteira já passou pela Fiscalização. Comparar execução com investimento
+    global sem considerar isso subestima o percentual executado.
+  </div>
+
+  <h2>Primeiros exemplos</h2>
+<pre><code><span class="comentario"># Resumo da carteira</span>
+curl "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/consolidado/resumo"
+
+<span class="comentario"># Contratos de um estado, em planilha Excel</span>
+curl -O -J "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/contratos?uf=SP&amp;formato=xlsx"
+
+<span class="comentario"># Valores corrigidos para dezembro de 2024</span>
+curl "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/contratos?data_reajuste=2024-12"
+
+<span class="comentario"># Investimento por região</span>
+curl "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/consolidado/por/regiao"
+
+<span class="comentario"># Pacote completo de dados abertos</span>
+curl -O -J "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados/download/completo"</code></pre>
+
+  <p>Em Python, com pandas:</p>
+<pre><code>import pandas as pd
+
+BASE = "https://prd-apex.antaq.gov.br/ords/sfc_sai/dados"
+
+<span class="comentario"># O CSV ja vem com o recorte inteiro, sem paginar</span>
+contratos = pd.read_csv(f"{BASE}/contratos?formato=csv", sep=";")
+
+<span class="comentario"># Ou via JSON, percorrendo as paginas</span>
+import requests
+linhas, offset = [], 0
+while True:
+    p = requests.get(f"{BASE}/contratos", params={"limit": 500, "offset": offset}).json()
+    linhas += p["items"]
+    if not p["has_more"]:
+        break
+    offset += p["returned_count"]
+df = pd.DataFrame(linhas)</code></pre>
+
+  <h2>Valores corrigidos</h2>
+  <p>
+    Cada contrato tem cláusula própria de reajuste, com um ou mais índices econômicos
+    (IPCA, IGP-M, INPC, INCC) e períodos de vigência. O parâmetro
+    <code>data_reajuste</code> define a data para a qual os valores são trazidos; se for
+    omitido, usa-se o mês corrente.
+  </p>
+  <p>Todo valor monetário vem em campos que permitem refazer a conta:</p>
+  <div class="rolagem"><table>
+    <tr><th>Sufixo</th><th>Conteúdo</th></tr>
+    <tr><td><code>_nominal</code></td><td>valor original, na data-base contratual</td></tr>
+    <tr><td><code>_data_base</code></td><td>data-base a que o valor nominal se refere</td></tr>
+    <tr><td><code>_fator</code></td><td>multiplicador acumulado aplicado, com 6 casas decimais</td></tr>
+    <tr><td><code>_corrigido</code></td><td><code>nominal × fator</code>, arredondado a 2 casas</td></tr>
+    <tr><td><code>_correcao</code></td><td>diagnóstico do cálculo</td></tr>
+  </table></div>
+  <p>
+    O diagnóstico existe porque um fator igual a 1 é ambíguo: pode significar
+    &ldquo;contrato sem reajuste&rdquo; ou &ldquo;não foi possível corrigir&rdquo;. Os
+    valores mais frequentes são:
+  </p>
+  <div class="rolagem"><table>
+    <tr><th>Valor</th><th>Significado</th></tr>
+    <tr><td><code>APLICADA</code></td>
+        <td>a série cobre todo o intervalo; correção integral</td></tr>
+    <tr><td><code>APLICADA_ATE_ULTIMA_COMPETENCIA</code></td>
+        <td>a data pedida é posterior à última competência publicada do índice, e o fator
+            acumulou até ela. <strong>É o caso normal</strong> quando
+            <code>data_reajuste</code> é omitido, porque as séries saem com defasagem</td></tr>
+    <tr><td><code>NAO_APLICAVEL</code></td>
+        <td>contrato sem cláusula de correção; fator 1 é o correto</td></tr>
+    <tr><td><code>SEM_DATA_BASE</code></td>
+        <td>data-base ausente no cadastro; devolvido o valor nominal</td></tr>
+  </table></div>
+  <p>
+    A lista completa está em <code>/dados/dominios</code>, domínio
+    <code>status_correcao</code>. A competência efetivamente aplicada a cada índice consta
+    de <code>metadados.ultima_competencia_indices</code>, presente em toda resposta.
+  </p>
+
+  <h2>Formatos e paginação</h2>
+  <p>
+    JSON, CSV e XLSX saem da <strong>mesma consulta</strong>: o arquivo baixado é
+    exatamente o recorte visto no JSON. O CSV usa UTF-8 com BOM, separador ponto-e-vírgula
+    e textos entre aspas — abre no Excel em português sem etapa de importação.
+  </p>
+  <p>
+    <strong>As exportações não paginam.</strong> <code>csv</code> e <code>xlsx</code>
+    devolvem o recorte inteiro, independentemente de <code>limit</code>. Já as respostas
+    JSON trazem no máximo 500 registros por página; percorra somando
+    <code>returned_count</code> ao <code>offset</code> enquanto <code>has_more</code> for
+    verdadeiro.
+  </p>
+
+  <h2>Dado pessoal</h2>
+  <p>
+    Esta API não expõe dado pessoal. Nomes, CPF, e-mail e telefone de representantes legais
+    não estão em nenhum endpoint, assim como os campos de texto livre preenchidos durante a
+    análise — observações e pareceres internos. A empresa aparece por razão social e CNPJ,
+    que são dados de pessoa jurídica.
+  </p>
+
+  <h2>Referência completa</h2>
+  <p>
+    Abaixo, todos os endpoints, parâmetros e campos. Os exemplos podem ser executados
+    diretamente na página pelo botão <em>Try it out</em>.
+  </p>
+</main>
+
+<div id="swagger-ui"></div>
+
+<footer class="rodape">
+  <div class="wrap">
+    <div>
+      <strong>Agência Nacional de Transportes Aquaviários</strong><br>
+      Superintendência de Fiscalização e Coordenação<br>
+      Gerência de Fiscalização Portuária
+    </div>
+    <div>
+      Dúvidas e sugestões: <a href="mailto:gpf@antaq.gov.br">gpf@antaq.gov.br</a><br>
+      <a href="./openapi.yaml">Especificação OpenAPI</a> &middot;
+      <a href="https://www.gov.br/governodigital/pt-br/dados-abertos">Licença Dados Abertos</a>
+    </div>
+  </div>
+</footer>
+
+<script src="./vendor/swagger-ui/swagger-ui-bundle.js"
+        integrity="sha384-IKpAWwsTL0pcw7/Amtnt2eXF4P1BK64WNuY2E/RG15SWLUW5HXzFuyqCSAr/DP8C"></script>
+<script src="./vendor/swagger-ui/swagger-ui-standalone-preset.js"
+        integrity="sha384-sm24U+dUFhSIgEfhSy6d7F66jTzh7YHwjwcdFANJ87OCxOWdQPERHk3xR2MtzMLa"></script>
+<script>
+  window.onload = function () {
+    const ui = SwaggerUIBundle({
+      url: './openapi.yaml',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      docExpansion: 'list',
+      defaultModelsExpandDepth: 0,
+      defaultModelExpandDepth: 3,
+      tryItOutEnabled: true,
+      displayRequestDuration: true,
+      filter: true,
+      syntaxHighlight: { activate: true, theme: 'agate' },
+      /* Desliga o envio da especificacao para validator.swagger.io. Nada de
+         um sistema de governo deve sair para servico externo sem necessidade. */
+      validatorUrl: null,
+      presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+      plugins: [SwaggerUIBundle.plugins.DownloadUrl],
+      layout: 'StandaloneLayout'
+    });
+    window.ui = ui;
+  };
+</script>
+</body>
+</html>
