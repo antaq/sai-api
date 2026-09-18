@@ -152,5 +152,5 @@ repositório interno do SAI.
 
 ## Contato
 
-Gerência de Fiscalização Portuária — ANTAQ/SFC
+Gerência de Planejamento e Inteligência da Fiscalização — ANTAQ/SFC
 📧 [gpf@antaq.gov.br](mailto:gpf@antaq.gov.br)
